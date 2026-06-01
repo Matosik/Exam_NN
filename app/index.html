@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тренажёр · Нейронные сети и глубокое обучение</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">NN</div>
+    <div class="htext">
+      <h1>Тренажёр для подготовки к тесту</h1>
+      <p>Нейронные сети и глубокое обучение · карточки с интервальным повторением</p>
+    </div>
+    <nav class="tabs">
+      <button class="tab on" data-view="setup">Тест</button>
+      <button class="tab" data-view="progress">Прогресс</button>
+    </nav>
+  </header>
+
+  <!-- ===================== SETUP ===================== -->
+  <section id="setup" class="panel">
+    <p class="section-title">Сколько вопросов в этой сессии</p>
+    <div class="count-row">
+      <div class="stepper">
+        <button id="countMinus" type="button" aria-label="меньше">−</button>
+        <input id="countInput" type="number" min="1" value="20" inputmode="numeric">
+        <button id="countPlus" type="button" aria-label="больше">+</button>
+      </div>
+      <div class="presets">
+        <button class="preset" data-v="10" type="button">10</button>
+        <button class="preset on" data-v="20" type="button">20</button>
+        <button class="preset" data-v="30" type="button">30</button>
+        <button class="preset" data-v="50" type="button">50</button>
+      </div>
+    </div>
+
+    <p class="section-title mt">Выберите темы</p>
+    <div class="chips" id="topicChips"></div>
+
+    <p class="section-title mt">Настройки</p>
+    <div class="opts">
+      <label class="switch"><input type="checkbox" id="optShuffleQ" checked><span class="track"></span>Перемешивать вопросы</label>
+      <label class="switch"><input type="checkbox" id="optShuffleA" checked><span class="track"></span>Перемешивать ответы</label>
+      <label class="switch"><input type="checkbox" id="optInstant" checked><span class="track"></span>Авто‑переворот при ответе</label>
+    </div>
+
+    <p class="section-title mt">Ваш прогресс по выбранным темам</p>
+    <div class="mini-stats">
+      <div class="mini fresh"><b id="miFresh">0</b><span>новых</span></div>
+      <div class="mini learning"><b id="miLearning">0</b><span>в процессе</span></div>
+      <div class="mini learned"><b id="miLearned">0</b><span>выучено</span></div>
+      <div class="mini"><b id="miMastery">0%</b><span>освоено</span></div>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="startBtn">▶ Начать тест</button>
+      <button class="btn ghost sm" id="reviewBtn">↻ Повторить трудные</button>
+    </div>
+    <p class="hint" id="setupHint"></p>
+  </section>
+
+  <!-- ===================== QUIZ ===================== -->
+  <section id="quiz" class="hidden">
+    <div class="hud">
+      <span class="counter" id="counter">1 / 1</span>
+      <div class="progress"><i id="progBar"></i></div>
+      <div class="score">
+        <span class="pill ok" id="okPill">✓ 0</span>
+        <span class="pill no" id="noPill">✗ 0</span>
+      </div>
+    </div>
+
+    <div class="scene">
+      <div class="card3d" id="card3d">
+        <!-- FRONT -->
+        <div class="face front">
+          <div class="cardHead">
+            <span class="topicTag" id="fTopic">Тема</span>
+            <span class="lvlTag" id="fLevel">новый</span>
+          </div>
+          <p class="q" id="fQ">Вопрос</p>
+          <div class="answers" id="fAnswers"></div>
+        </div>
+        <!-- BACK -->
+        <div class="face back" id="backFace">
+          <div class="verdict">
+            <div class="vIcon" id="vIcon">✓</div>
+            <div class="vText"><b id="vTitle">Верно!</b><span id="vTopic">Тема</span></div>
+          </div>
+          <div class="backScroll">
+            <p class="qsmall" id="bQ"></p>
+            <div class="blk your hidden" id="yourBlk"><div class="lbl">Ваш ответ</div><div id="yourTxt"></div></div>
+            <div class="blk right"><div class="lbl">Правильный ответ</div><div id="rightTxt"></div></div>
+            <div class="blk expl"><div class="lbl">Пояснение</div><div id="explTxt"></div></div>
+          </div>
+          <div class="backFoot">
+            <button class="btn" id="nextBtn">Дальше →</button>
+            <button class="btn ghost sm" id="quitBtn">Завершить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RESULTS ===================== -->
+  <section id="results" class="panel hidden">
+    <p class="section-title">Результат сессии</p>
+    <div class="bigScore"><b id="rScorePct">0%</b><span id="rScoreRaw">0 из 0</span></div>
+    <div id="rByTopic"></div>
+
+    <p class="section-title mt">Список ваших ответов</p>
+    <div class="filter-row" id="revFilter">
+      <button class="preset on" data-f="all" type="button">Все</button>
+      <button class="preset" data-f="wrong" type="button">Ошибки</button>
+      <button class="preset" data-f="right" type="button">Верные</button>
+    </div>
+    <div class="review" id="review"></div>
+
+    <div class="row">
+      <button class="btn" id="againBtn">↺ Новый тест</button>
+      <button class="btn ghost" id="retryWrongBtn">Повторить ошибки этой сессии</button>
+    </div>
+    <p class="hint center" id="rMsg"></p>
+  </section>
+
+  <!-- ===================== PROGRESS ===================== -->
+  <section id="progress" class="panel hidden">
+    <p class="section-title">Общий прогресс</p>
+    <div class="bigScore"><b id="pgMastery">0%</b><span>освоено материала</span></div>
+    <div class="stack" id="pgStack" style="margin:8px 0"></div>
+    <div class="legend" id="pgLegend"></div>
+
+    <div class="mini-stats">
+      <div class="mini"><b id="pgSeen">0</b><span>изучается</span></div>
+      <div class="mini"><b id="pgTotal">0</b><span>всего</span></div>
+      <div class="mini learned"><b id="pgRight">0</b><span>верных ответов</span></div>
+      <div class="mini"><b id="pgWrong">0</b><span>ошибок</span></div>
+    </div>
+
+    <p class="section-title mt">По темам</p>
+    <div class="bars-topic" id="pgByTopic"></div>
+
+    <div class="row">
+      <button class="btn ghost sm danger-btn" id="resetBtn">Сбросить прогресс</button>
+    </div>
+  </section>
+
+  <p class="hint center" style="margin-top:26px">
+    Прогресс сохраняется в браузере. Вопросы, на которых вы ошибаетесь, показываются чаще; освоенные — реже.
+    Горячие клавиши: <kbd>1</kbd>–<kbd>4</kbd> ответ, <kbd>→</kbd>/<kbd>Пробел</kbd> дальше.
+  </p>
+</div>
+
+<!-- Данные: автогенерируемый бандл (работает по двойному клику).
+     Источник истины — data/questions.json (см. README и tools/build.py). -->
+<script src="data/questions.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

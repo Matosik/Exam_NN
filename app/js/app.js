@@ -378,8 +378,8 @@
     $("againBtn").onclick = function () { showView("setup"); };
     $("retryWrongBtn").onclick = function () { if (lastWrongIds.length) startSession(shuffle(lastWrongIds.slice())); };
 
-    // вкладки
-    document.querySelectorAll(".tab").forEach(function (t) {
+    // вкладки (ссылки без data-view — например «Справочник» — работают как обычные ссылки)
+    document.querySelectorAll(".tab[data-view]").forEach(function (t) {
       t.onclick = function () { showView(t.dataset.view); };
     });
 

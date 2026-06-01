@@ -196,7 +196,35 @@ kbd{background:var(--bg2);border:1px solid var(--line);border-bottom-width:2px;b
 .empty{color:var(--muted);font-size:13.5px;padding:8px 0}
 
 .hidden{display:none!important}
+
+/* ===================== СПРАВОЧНИК (reference.html) ===================== */
+a.tab{text-decoration:none;display:inline-flex;align-items:center}
+.search-row{display:flex;gap:10px;align-items:center}
+#refSearch{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);color:var(--txt);
+  border-radius:12px;padding:12px 14px;font-size:15px;outline:none}
+#refSearch:focus{border-color:var(--accent)}
+#refNav .chip{cursor:pointer}
+#refNav .chip.dim{opacity:.4}
+.ref-topic{margin-bottom:18px}
+.ref-h{font-size:18px;margin:0 0 6px;font-weight:750;color:var(--accent)}
+.ref-sub{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);
+  font-weight:700;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.formula-list{display:flex;flex-direction:column;gap:10px}
+.formula{background:var(--bg2);border:1px solid var(--line);border-radius:13px;padding:12px 14px;border-left:3px solid var(--accent)}
+.f-name{font-size:13px;font-weight:700;margin-bottom:7px}
+.f-expr{font-family:"Cascadia Code",Consolas,"SF Mono",Menlo,monospace;font-size:14px;line-height:1.7;
+  background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 12px;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+.f-note{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+.fact-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.fact-list li{font-size:14px;line-height:1.5}
+.fact-list li::marker{color:var(--accent)}
+.gloss-list{display:flex;flex-direction:column;gap:8px}
+.gloss{background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:10px 13px}
+.g-term{display:block;font-weight:700;font-size:14px;color:var(--txt);margin-bottom:3px}
+.g-def{display:block;font-size:13px;color:var(--muted);line-height:1.5}
+
 @media (max-width:560px){
   .q{font-size:17px}.face{padding:18px}.tStat .name{flex-basis:120px}
   .tabs{margin-left:0;width:100%}
+  .f-expr{font-size:12.5px}
 }

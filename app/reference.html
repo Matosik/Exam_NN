@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Справочник · Нейронные сети и глубокое обучение</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">NN</div>
+    <div class="htext">
+      <h1>Справочник по курсу</h1>
+      <p>Ключевые формулы, факты и глоссарий · сгруппировано по темам</p>
+    </div>
+    <nav class="tabs">
+      <a class="tab" href="index.html">← Тренажёр</a>
+      <span class="tab on">Справочник</span>
+    </nav>
+  </header>
+
+  <div class="panel" style="margin-bottom:16px">
+    <p class="section-title">Поиск по справочнику</p>
+    <div class="search-row">
+      <input id="refSearch" type="search" placeholder="Найти термин, формулу или факт…" autocomplete="off">
+      <button id="refClear" class="btn ghost sm" type="button">Очистить</button>
+    </div>
+    <p class="section-title mt">Темы</p>
+    <div class="chips" id="refNav"></div>
+  </div>
+
+  <p id="refEmpty" class="hint center hidden">Ничего не найдено. Попробуйте другой запрос.</p>
+
+  <div id="refContent"></div>
+
+  <p class="hint center" style="margin-top:26px">
+    Это «шпаргалка» к вопросам тренажёра: термины и формулы, которые нужно знать, чтобы понимать, о чём спрашивают.
+  </p>
+</div>
+
+<script src="data/reference.js"></script>
+<script src="js/reference.js"></script>
+</body>
+</html>

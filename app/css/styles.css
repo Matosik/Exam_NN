@@ -130,6 +130,20 @@ kbd{background:var(--bg2);border:1px solid var(--line);border-bottom-width:2px;b
 .ans.wrong .key{background:var(--red);color:#fff;border-color:transparent}
 .ans.dim{opacity:.5}
 .ans:disabled{cursor:default}
+/* выбранный вариант в режиме мультивыбора (до проверки) */
+.ans.sel{border-color:var(--accent);background:var(--card2)}
+.ans.sel .key{background:var(--accent);color:#fff;border-color:transparent}
+
+/* несколько верных ответов — каждый с новой строки */
+#rightTxt,#yourTxt{white-space:pre-line}
+
+/* картинка-иллюстрация к вопросу */
+.qimg{display:block;max-width:100%;max-height:300px;margin:0 auto 16px;border-radius:12px;
+  background:#fff;padding:8px;box-shadow:var(--shadow)}
+
+/* подсказка и кнопка проверки для мультивыбора */
+.multiHint{margin:12px 0 4px;color:var(--muted);font-size:12.5px}
+.submitBtn{margin-top:8px;align-self:flex-start}
 
 /* ---------- back face ---------- */
 .verdict{display:flex;align-items:center;gap:11px;margin-bottom:14px}

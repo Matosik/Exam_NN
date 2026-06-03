@@ -17,14 +17,13 @@
   }
   function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 
-  /* подгоняем высоту карточки под содержимое активной стороны,
-     чтобы длинные списки ответов не вылезали за границы */
+  /* подгоняем высоту карточки под содержимое активной стороны */
   function fitCard(toBack) {
     var face = toBack ? $("backFace") : document.querySelector(".face.front");
     if (!face) return;
     var card = $("card3d");
-    card.style.height = "auto";            // сброс, чтобы можно было и уменьшить высоту
-    var h = face.offsetHeight;             // чтение форсирует пересчёт по содержимому
+    card.style.height = "auto";
+    var h = face.offsetHeight;
     card.style.height = h + "px";
   }
   function flipToBack() {
@@ -39,7 +38,8 @@
   var queue = [], pos = 0, answered = false;
   var sessOk = 0, sessNo = 0, sessByTopic = {}, sessLog = [];
   var lastWrongIds = [];
-  var KEYS = ["A", "B", "C", "D"];
+  var curSelected = {};            // выбранные варианты для вопросов с мультивыбором
+  var KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   /* ----------------- загрузка данных ----------------- */
   function boot(data) {
@@ -53,7 +53,6 @@
 
   function loadData() {
     if (global_QUIZ_DATA()) { boot(global_QUIZ_DATA()); return; }
-    // запасной путь: fetch (работает при запуске через локальный сервер)
     fetch("data/questions.json")
       .then(function (r) { return r.json(); })
       .then(boot)
@@ -98,24 +97,20 @@
   function updateSetup() {
     var p = pool();
     var n = p.length;
-    // ограничим желаемое число доступным пулом
     desiredCount = clamp(desiredCount, 1, Math.max(1, n));
     $("countInput").value = desiredCount;
     $("startBtn").disabled = n === 0;
     $("setupHint").textContent = n === 0
       ? "Выберите хотя бы одну тему."
       : "Доступно " + n + " вопрос(ов) в выбранных темах. Будет показано " + Math.min(desiredCount, n) + ".";
-    // мини-статистика прогресса по выбранному пулу
     var s = window.Store.summary(p);
     $("miFresh").textContent = s.fresh;
     $("miLearning").textContent = s.learning;
     $("miLearned").textContent = s.learned;
     $("miMastery").textContent = s.mastery + "%";
-    // отметим активный пресет
     document.querySelectorAll(".preset").forEach(function (b) {
       b.classList.toggle("on", +b.dataset.v === desiredCount);
     });
-    // кнопка повтора ошибок
     var wrongPool = p.filter(function (q) { return window.Store.get(q.id).wrong > 0 && !window.Store.isLearned(q.id); });
     $("reviewBtn").disabled = wrongPool.length === 0;
     $("reviewBtn").textContent = "↻ Повторить трудные" + (wrongPool.length ? " (" + wrongPool.length + ")" : "");
@@ -143,9 +138,17 @@
   function buildQueue(list) {
     var shuffleA = $("optShuffleA").checked;
     queue = list.map(function (q) {
-      var order = [0, 1, 2, 3];
+      var order = [];
+      for (var i = 0; i < q.a.length; i++) order.push(i);
       if (shuffleA) order = shuffle(order);
-      return { ref: q, order: order, correctPos: order.indexOf(q.correct) };
+      var multi = Array.isArray(q.correct);
+      var correctArr = multi ? q.correct : [q.correct];
+      var correctPositions = correctArr.map(function (ci) { return order.indexOf(ci); });
+      return {
+        ref: q, order: order, multi: multi,
+        correctPos: correctPositions[0],
+        correctPositions: correctPositions
+      };
     });
     pos = 0; sessOk = 0; sessNo = 0; sessByTopic = {}; sessLog = [];
   }
@@ -159,7 +162,6 @@
 
   function startNormal() {
     var picked = weightedPick(pool(), desiredCount);
-    // показываем «слабые» раньше, но при желании перемешиваем
     if ($("optShuffleQ").checked) picked = shuffle(picked);
     else picked.sort(function (a, b) { return window.Store.get(a.id).box - window.Store.get(b.id).box; });
     startSession(picked);
@@ -174,9 +176,25 @@
     startSession(shuffle(picked));
   }
 
+  /* вставляет/обновляет картинку вопроса на нужной стороне карточки */
+  function renderImage(side, q) {
+    var qEl = side === "front" ? $("fQ") : $("bQ");
+    var face = qEl.parentNode;
+    var old = face.querySelector(".qimg");
+    if (old) old.parentNode.removeChild(old);
+    if (!q.img) return;
+    var img = document.createElement("img");
+    img.className = "qimg";
+    img.src = "data/img/" + q.img;
+    img.alt = "иллюстрация к вопросу";
+    img.onload = function () { fitCard($("card3d").classList.contains("flipped")); };
+    face.insertBefore(img, qEl.nextSibling);
+  }
+
   /* ----------------- рендер карточки ----------------- */
   function renderCard() {
     answered = false;
+    curSelected = {};
     $("card3d").classList.remove("flipped");
     var item = queue[pos], q = item.ref;
     $("counter").textContent = (pos + 1) + " / " + queue.length;
@@ -189,50 +207,79 @@
     lvl.textContent = st === "learned" ? "выучен" : st === "learning" ? "в процессе" : "новый";
     lvl.className = "lvlTag" + (st === "learned" ? " learned" : "");
     $("fQ").textContent = q.q;
+    renderImage("front", q);
     var box = $("fAnswers"); box.innerHTML = "";
     item.order.forEach(function (origIdx, i) {
       var b = document.createElement("button");
       b.className = "ans";
-      b.innerHTML = '<span class="key">' + KEYS[i] + '</span><span>' + q.a[origIdx] + "</span>";
-      b.onclick = function () { choose(i, b); };
+      b.innerHTML = '<span class="key">' + KEYS[i] + '</span><span>' + esc(q.a[origIdx]) + "</span>";
+      if (item.multi) b.onclick = function () { toggleSel(i, b); };
+      else b.onclick = function () { choose(i, b); };
       box.appendChild(b);
     });
+    if (item.multi) {
+      var hint = document.createElement("p");
+      hint.className = "multiHint";
+      hint.textContent = "Выберите все верные варианты, затем нажмите «Проверить».";
+      box.appendChild(hint);
+      var sb = document.createElement("button");
+      sb.className = "btn submitBtn"; sb.id = "submitBtn";
+      sb.textContent = "Проверить";
+      sb.onclick = submitMulti;
+      box.appendChild(sb);
+    }
     fitCard(false);
   }
 
-  /* ----------------- ответ ----------------- */
-  function choose(i, btn) {
+  /* переключение варианта в режиме мультивыбора */
+  function toggleSel(i, btn) {
     if (answered) return;
-    answered = true;
-    var item = queue[pos], q = item.ref;
-    var correct = i === item.correctPos;
+    if (curSelected[i]) { delete curSelected[i]; btn.classList.remove("sel"); }
+    else { curSelected[i] = true; btn.classList.add("sel"); }
+  }
 
-    var btns = Array.prototype.slice.call($("fAnswers").children);
+  /* текст «A. вариант; C. вариант» для набора позиций (в текущем порядке) */
+  function posText(item, positions) {
+    var q = item.ref;
+    if (!positions.length) return "(ничего не выбрано)";
+    return positions.slice().sort(function (a, b) { return a - b; })
+      .map(function (p) { return KEYS[p] + ". " + q.a[item.order[p]]; })
+      .join("\n");
+  }
+
+  /* подсветка вариантов после ответа */
+  function reveal(item, selectedPositions) {
+    var correctSet = {}, selSet = {};
+    item.correctPositions.forEach(function (p) { correctSet[p] = true; });
+    selectedPositions.forEach(function (p) { selSet[p] = true; });
+    var btns = Array.prototype.slice.call($("fAnswers").querySelectorAll(".ans"));
     btns.forEach(function (b, idx) {
       b.disabled = true;
-      if (idx === item.correctPos) b.classList.add("correct");
-      else if (idx === i) b.classList.add("wrong");
+      b.classList.remove("sel");
+      if (correctSet[idx]) b.classList.add("correct");
+      else if (selSet[idx]) b.classList.add("wrong");
       else b.classList.add("dim");
     });
+    var sb = $("submitBtn"); if (sb) sb.disabled = true;
+  }
 
-    // учёт сессии
+  /* общий учёт ответа + заполнение задней стороны карточки */
+  function recordAnswer(item, correct, selectedPositions) {
+    var q = item.ref;
     var t = q.topic;
     sessByTopic[t] = sessByTopic[t] || { ok: 0, total: 0 };
     sessByTopic[t].total++;
     if (correct) { sessOk++; sessByTopic[t].ok++; } else { sessNo++; }
     sessLog.push({
       q: q, correct: correct,
-      yourText: q.a[item.order[i]],
-      correctText: q.a[q.correct]
+      yourText: posText(item, selectedPositions),
+      correctText: posText(item, item.correctPositions)
     });
 
-    // память / SRS
     window.Store.record(q.id, correct);
-
     $("okPill").textContent = "✓ " + sessOk;
     $("noPill").textContent = "✗ " + sessNo;
 
-    // задняя сторона
     var bf = $("backFace");
     bf.classList.toggle("ok", correct);
     bf.classList.toggle("no", !correct);
@@ -241,15 +288,39 @@
     $("vTitle").textContent = correct ? "Верно!" : "Неверно";
     $("vTopic").textContent = TOPICS[q.topic];
     $("bQ").textContent = q.q;
-    $("rightTxt").textContent = KEYS[item.correctPos] + ". " + q.a[q.correct];
+    renderImage("back", q);
+    $("rightTxt").textContent = posText(item, item.correctPositions);
     var yb = $("yourBlk");
     if (correct) { yb.classList.add("hidden"); }
-    else { yb.classList.remove("hidden"); $("yourTxt").textContent = KEYS[i] + ". " + q.a[item.order[i]]; }
+    else { yb.classList.remove("hidden"); $("yourTxt").textContent = posText(item, selectedPositions); }
     $("explTxt").textContent = q.explanation;
     $("progBar").style.width = ((pos + 1) / queue.length * 100) + "%";
 
-    fitCard(false); // обновим высоту фронта (подсветка не меняет размер, но на всякий случай)
+    fitCard(false);
     if ($("optInstant").checked) setTimeout(flipToBack, 260);
+  }
+
+  /* ----------------- ответ (одиночный выбор) ----------------- */
+  function choose(i) {
+    if (answered) return;
+    answered = true;
+    var item = queue[pos];
+    var correct = item.correctPositions.indexOf(i) >= 0;
+    reveal(item, [i]);
+    recordAnswer(item, correct, [i]);
+  }
+
+  /* ----------------- ответ (мультивыбор) ----------------- */
+  function submitMulti() {
+    if (answered) return;
+    answered = true;
+    var item = queue[pos];
+    var sel = Object.keys(curSelected).map(Number).sort(function (a, b) { return a - b; });
+    var cor = item.correctPositions.slice().sort(function (a, b) { return a - b; });
+    var correct = sel.length === cor.length &&
+      cor.every(function (v, idx) { return v === sel[idx]; });
+    reveal(item, sel);
+    recordAnswer(item, correct, sel);
   }
 
   function next() {
@@ -266,7 +337,6 @@
     $("rScorePct").textContent = pct + "%";
     $("rScoreRaw").textContent = sessOk + " из " + total + " верно";
 
-    // по темам
     var box = $("rByTopic"); box.innerHTML = "";
     Object.keys(TOPICS).forEach(function (t) {
       var s = sessByTopic[t]; if (!s) return;
@@ -278,7 +348,6 @@
       box.appendChild(row);
     });
 
-    // подробный список ответов
     renderReview("all");
     lastWrongIds = sessLog.filter(function (x) { return !x.correct; }).map(function (x) { return x.q; });
     $("retryWrongBtn").style.display = lastWrongIds.length ? "inline-block" : "none";
@@ -307,9 +376,9 @@
         '<div class="rev-body">' +
         '<div class="rev-q"><span class="qnum">' + o.n + ".</span>" + esc(x.q.q) + "</div>";
       if (!x.correct) {
-        html += '<div class="rev-a you-wrong">Ваш ответ: <b>' + esc(x.yourText) + "</b></div>";
+        html += '<div class="rev-a you-wrong">Ваш ответ: <b>' + esc(x.yourText).replace(/\n/g, "<br>") + "</b></div>";
       }
-      html += '<div class="rev-a correct-a">Правильно: <b>' + esc(x.correctText) + "</b></div>" +
+      html += '<div class="rev-a correct-a">Правильно: <b>' + esc(x.correctText).replace(/\n/g, "<br>") + "</b></div>" +
         '<div class="rev-topic">' + esc(TOPICS[x.q.topic]) + "</div>" +
         "</div>";
       el.innerHTML = html;
@@ -327,7 +396,6 @@
     $("pgRight").textContent = s.right;
     $("pgWrong").textContent = s.wrong;
 
-    // общий стек fresh/learning/learned
     var stack = $("pgStack");
     var tot = s.total || 1;
     stack.innerHTML =
@@ -339,7 +407,6 @@
       '<span><i class="dot a"></i>В процессе: ' + s.learning + "</span>" +
       '<span><i class="dot b"></i>Новых: ' + s.fresh + "</span>";
 
-    // по темам
     var box = $("pgByTopic"); box.innerHTML = "";
     Object.keys(TOPICS).forEach(function (t) {
       var ts = window.Store.summaryByTopic(ALL, t);
@@ -378,12 +445,10 @@
     $("againBtn").onclick = function () { showView("setup"); };
     $("retryWrongBtn").onclick = function () { if (lastWrongIds.length) startSession(shuffle(lastWrongIds.slice())); };
 
-    // вкладки (ссылки без data-view — например «Справочник» — работают как обычные ссылки)
     document.querySelectorAll(".tab[data-view]").forEach(function (t) {
       t.onclick = function () { showView(t.dataset.view); };
     });
 
-    // счётчик количества
     $("countMinus").onclick = function () { setCount(desiredCount - 1); };
     $("countPlus").onclick = function () { setCount(desiredCount + 1); };
     $("countInput").onchange = function () { setCount(parseInt(this.value, 10) || 1); };
@@ -391,7 +456,6 @@
       b.onclick = function () { setCount(+b.dataset.v); };
     });
 
-    // фильтр списка ответов в итогах
     document.querySelectorAll("#revFilter .preset").forEach(function (b) {
       b.onclick = function () {
         document.querySelectorAll("#revFilter .preset").forEach(function (x) { x.classList.remove("on"); });
@@ -400,14 +464,12 @@
       };
     });
 
-    // сброс прогресса
     $("resetBtn").onclick = function () {
       if (confirm("Сбросить весь сохранённый прогресс и статистику?")) {
         window.Store.reset(); renderProgress(); alert("Прогресс сброшен.");
       }
     };
 
-    // переворот по клику (если авто-переворот выключен) + клавиатура
     $("card3d").addEventListener("click", function () {
       if (answered && !$("card3d").classList.contains("flipped") && !$("optInstant").checked) {
         flipToBack();
@@ -415,8 +477,11 @@
     });
     document.addEventListener("keydown", function (e) {
       if ($("quiz").classList.contains("hidden")) return;
-      if (["1", "2", "3", "4"].indexOf(e.key) >= 0 && !answered) {
-        var b = $("fAnswers").children[+e.key - 1]; if (b) b.click();
+      var item = queue[pos];
+      if (/^[1-9]$/.test(e.key) && !answered) {
+        var b = $("fAnswers").querySelectorAll(".ans")[+e.key - 1]; if (b) b.click();
+      } else if (e.key === "Enter" && !answered && item && item.multi) {
+        e.preventDefault(); submitMulti();
       } else if ((e.key === "ArrowRight" || e.key === " " || e.key === "Enter") && answered) {
         e.preventDefault();
         if (!$("card3d").classList.contains("flipped")) flipToBack();

@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 build.py — пересобирает JS-бандлы из JSON-источников:
     data/questions.json  -> data/questions.js   (window.QUIZ_DATA)
     data/reference.json  -> data/reference.js   (window.REFERENCE_DATA)
-
-JSON-файлы — ЕДИНСТВЕННЫЙ источник истины. JS-бандлы нужны, чтобы страницы
-открывались двойным кликом (file://), когда браузер блокирует fetch() локального
-JSON.
-
-После любого изменения JSON запустите:
-    python tools/build.py
+После любого изменения JSON запустите:  python tools/build.py
 """
 import json, os, sys
 
@@ -34,10 +29,19 @@ def build_questions():
         if not qid or qid in seen:
             print("Дубликат/пустой id:", qid); errors += 1
         seen.add(qid)
-        if len(q.get("a", [])) != 4:
-            print("Не 4 варианта:", qid); errors += 1
-        if not (0 <= q.get("correct", -1) < 4):
-            print("Неверный correct:", qid); errors += 1
+        n = len(q.get("a", []))
+        cor = q.get("correct", None)
+        # обычные вопросы — ровно 4 варианта; мультивыбор (correct — список) — любое число >= 2
+        if isinstance(cor, list):
+            if n < 2:
+                print("Мало вариантов (мультивыбор):", qid); errors += 1
+            if not cor or any((not isinstance(c, int) or not (0 <= c < n)) for c in cor):
+                print("Неверный correct (список):", qid); errors += 1
+        else:
+            if n != 4:
+                print("Не 4 варианта:", qid); errors += 1
+            if not (isinstance(cor, int) and 0 <= cor < 4):
+                print("Неверный correct:", qid); errors += 1
         if q.get("topic") not in topics:
             print("Неизвестная тема:", qid); errors += 1
     if errors:
